@@ -1,0 +1,39 @@
+{
+  "log_file": "/var/log/cronwatcher.log",
+  "state_file": "/var/lib/cronwatcher/state.json",
+  "check_interval": 30,
+  "alert": {
+    "email": "ops@example.com",
+    "webhook_url": "https://hooks.example.com/alerts",
+    "slack_channel": "#ops-alerts"
+  },
+  "jobs": [
+    {
+      "name": "daily-backup",
+      "schedule": "0 2 * * *",
+      "command": "/usr/local/bin/backup.sh",
+      "timeout": 3600,
+      "alert_on_failure": true,
+      "alert_on_missed": true,
+      "grace_period": 120
+    },
+    {
+      "name": "health-check",
+      "schedule": "*/5 * * * *",
+      "command": "/usr/local/bin/healthcheck.sh",
+      "timeout": 60,
+      "alert_on_failure": true,
+      "alert_on_missed": false,
+      "grace_period": 30
+    },
+    {
+      "name": "weekly-report",
+      "schedule": "0 9 * * 1",
+      "command": "/usr/local/bin/generate_report.py",
+      "timeout": 1800,
+      "alert_on_failure": true,
+      "alert_on_missed": true,
+      "grace_period": 300
+    }
+  ]
+}
