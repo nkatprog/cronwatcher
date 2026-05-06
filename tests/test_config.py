@@ -92,3 +92,15 @@ def test_load_config_defaults():
 def test_load_config_file_not_found():
     with pytest.raises(FileNotFoundError):
         load_config("/nonexistent/path/config.json")
+
+
+def test_load_config_invalid_json():
+    """Ensure a ValueError (or similar) is raised when the config file contains invalid JSON."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        f.write("{this is not valid json")
+        path = f.name
+    try:
+        with pytest.raises((ValueError, json.JSONDecodeError)):
+            load_config(path)
+    finally:
+        os.unlink(path)
