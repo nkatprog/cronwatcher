@@ -1,70 +1,74 @@
-"""Configuration loader for cronwatcher."""
+"""Configuration loading and dataclasses for cronwatcher."""
+from __future__ import annotations
 
-import os
 import json
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
 class JobConfig:
-    name: str
-    schedule: str  # cron expression, e.g. "*/5 * * * *"
-    command: str
-    timeout: int = 300  # seconds
-    alert_on_failure: bool = True
-    alert_on_missed: bool = True
-    grace_period: int = 60  # seconds after expected run before alerting
+    schedule: str
+    timeout: int
+    grace_period: int = 60
+    tags: List[str] = field(default_factory=list)
+    description: str = ""
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "JobConfig":
+        return cls(
+            schedule=data["schedule"],
+            timeout=data["timeout"],
+            grace_period=data.get("grace_period", 60),
+            tags=data.get("tags", []),
+            description=data.get("description", ""),
+        )
 
 
 @dataclass
 class AlertConfig:
-    email: Optional[str] = None
-    webhook_url: Optional[str] = None
-    slack_channel: Optional[str] = None
+    email: Optional[dict] = None
+    webhook: Optional[dict] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "AlertConfig":
+        return cls(
+            email=data.get("email"),
+            webhook=data.get("webhook"),
+        )
 
 
 @dataclass
 class CronWatcherConfig:
-    jobs: List[JobConfig] = field(default_factory=list)
-    alert: AlertConfig = field(default_factory=AlertConfig)
-    log_file: str = "/var/log/cronwatcher.log"
-    state_file: str = "/var/lib/cronwatcher/state.json"
-    check_interval: int = 30  # seconds between checks
+    jobs: Dict[str, JobConfig]
+    alert: AlertConfig
+    check_interval: int = 60
+    notification_cooldown: int = 3600
+    history_file: str = "cronwatcher_history.json"
+    audit_file: str = "cronwatcher_audit.json"
+    silence_file: str = "cronwatcher_silence.json"
+    report_interval: int = 86400
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CronWatcherConfig":
+        jobs = {
+            name: JobConfig.from_dict(cfg)
+            for name, cfg in data.get("jobs", {}).items()
+        }
+        alert = AlertConfig.from_dict(data.get("alert", {}))
+        return cls(
+            jobs=jobs,
+            alert=alert,
+            check_interval=data.get("check_interval", 60),
+            notification_cooldown=data.get("notification_cooldown", 3600),
+            history_file=data.get("history_file", "cronwatcher_history.json"),
+            audit_file=data.get("audit_file", "cronwatcher_audit.json"),
+            silence_file=data.get("silence_file", "cronwatcher_silence.json"),
+            report_interval=data.get("report_interval", 86400),
+        )
 
 
 def load_config(path: str) -> CronWatcherConfig:
-    """Load configuration from a JSON file."""
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Config file not found: {path}")
-
-    with open(path, "r") as f:
-        raw = json.load(f)
-
-    alert_raw = raw.get("alert", {})
-    alert = AlertConfig(
-        email=alert_raw.get("email"),
-        webhook_url=alert_raw.get("webhook_url"),
-        slack_channel=alert_raw.get("slack_channel"),
-    )
-
-    jobs = [
-        JobConfig(
-            name=j["name"],
-            schedule=j["schedule"],
-            command=j["command"],
-            timeout=j.get("timeout", 300),
-            alert_on_failure=j.get("alert_on_failure", True),
-            alert_on_missed=j.get("alert_on_missed", True),
-            grace_period=j.get("grace_period", 60),
-        )
-        for j in raw.get("jobs", [])
-    ]
-
-    return CronWatcherConfig(
-        jobs=jobs,
-        alert=alert,
-        log_file=raw.get("log_file", "/var/log/cronwatcher.log"),
-        state_file=raw.get("state_file", "/var/lib/cronwatcher/state.json"),
-        check_interval=raw.get("check_interval", 30),
-    )
+    with open(path) as fh:
+        data = json.load(fh)
+    return CronWatcherConfig.from_dict(data)
