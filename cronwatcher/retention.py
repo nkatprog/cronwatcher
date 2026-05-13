@@ -33,22 +33,23 @@ class HistoryPruner:
         self._history = history
         self._policy = policy
 
+    def _prune_job(self, job_name: str, cutoff: datetime) -> int:
+        """Prune entries for a single job. Returns the number of entries removed."""
+        entries = self._history._entries[job_name]
+        before = len(entries)
+        entries[:] = [e for e in entries if e.timestamp >= cutoff]
+        if self._policy.max_entries_per_job is not None:
+            entries[:] = entries[-self._policy.max_entries_per_job:]
+        return before - len(entries)
+
     def prune(self) -> int:
         """Remove stale entries. Returns the number of entries removed."""
         cutoff = self._policy.cutoff_time()
-        before = {job: len(entries) for job, entries in self._history._entries.items()}
+        removed = 0
 
         for job_name in list(self._history._entries.keys()):
-            entries = self._history._entries[job_name]
-            entries[:] = [
-                e for e in entries
-                if e.timestamp >= cutoff
-            ]
-            if self._policy.max_entries_per_job is not None:
-                entries[:] = entries[-self._policy.max_entries_per_job:]
+            removed += self._prune_job(job_name, cutoff)
 
-        after = {job: len(entries) for job, entries in self._history._entries.items()}
-        removed = sum(before.get(j, 0) - after.get(j, 0) for j in before)
         if removed:
             self._history.save()
             logger.info("Pruned %d history entries.", removed)
