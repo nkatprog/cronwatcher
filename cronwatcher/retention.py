@@ -17,6 +17,8 @@ class RetentionPolicy:
     def __init__(self, max_age_days: int = 30, max_entries_per_job: Optional[int] = 100):
         if max_age_days <= 0:
             raise ValueError("max_age_days must be positive")
+        if max_entries_per_job is not None and max_entries_per_job <= 0:
+            raise ValueError("max_entries_per_job must be positive or None")
         self.max_age_days = max_age_days
         self.max_entries_per_job = max_entries_per_job
 
