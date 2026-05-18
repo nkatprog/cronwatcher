@@ -81,20 +81,21 @@ class TestAllClear:
 # ---------------------------------------------------------------------------
 
 class TestFromJobConfigs:
+    """Tests for the DependencyGraph.from_job_configs class method."""
+
     def test_builds_graph_from_configs(self):
-        class FakeJob:
-            def __init__(self, name, depends_on=None):
-                self.name = name
-                self.depends_on = depends_on
-
-        jobs = [
-            FakeJob("alpha"),
-            FakeJob("beta", depends_on=["alpha"]),
+        configs = [
+            {"name": "job_a", "depends_on": []},
+            {"name": "job_b", "depends_on": ["job_a"]},
         ]
-        g = DependencyGraph.from_job_configs(jobs)
-        assert g.dependencies_of("beta") == ["alpha"]
-        assert g.dependencies_of("alpha") == []
+        graph = DependencyGraph.from_job_configs(configs)
+        assert graph.dependencies_of("job_b") == ["job_a"]
 
-    def test_empty_list_gives_empty_graph(self):
-        g = DependencyGraph.from_job_configs([])
-        assert g.dependencies_of("anything") == []
+    def test_missing_depends_on_key_treated_as_no_deps(self):
+        configs = [{"name": "job_a"}]
+        graph = DependencyGraph.from_job_configs(configs)
+        assert graph.dependencies_of("job_a") == []
+
+    def test_empty_configs_produces_empty_graph(self):
+        graph = DependencyGraph.from_job_configs([])
+        assert graph.dependencies_of("anything") == []
