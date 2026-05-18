@@ -23,11 +23,22 @@ def config_file(tmp_path):
 
 class TestCliRetention:
     def test_parser_defaults(self):
+        """Verify that the argument parser sets sensible defaults."""
         parser = build_arg_parser()
         args = parser.parse_args(["--config", "cfg.json"])
         assert args.max_age_days == 30
         assert args.max_entries == 100
         assert not args.dry_run
+
+    def test_parser_custom_values(self):
+        """Verify that custom CLI arguments are parsed correctly."""
+        parser = build_arg_parser()
+        args = parser.parse_args(
+            ["--config", "cfg.json", "--max-age-days", "14", "--max-entries", "50", "--dry-run"]
+        )
+        assert args.max_age_days == 14
+        assert args.max_entries == 50
+        assert args.dry_run
 
     def test_prune_calls_pruner(self, config_file, capsys):
         with patch("cronwatcher.cli_retention.HistoryPruner") as MockPruner:
